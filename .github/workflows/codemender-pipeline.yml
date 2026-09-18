@@ -80,6 +80,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo ln -sf /bin/bash /bin/sh
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
           mkdir -p "$RUNNER_TEMP/cmbin"
           install -m 0755 "$CM_BUNDLED" "$RUNNER_TEMP/cmbin/cm"
           echo "$RUNNER_TEMP/cmbin" >> "$GITHUB_PATH"
@@ -152,7 +153,7 @@ jobs:
           #
           #   No --unrestricted. project_paths already lets the agent follow
           #   imports and callers across the repo with the sandbox left on.
-          cm find "$SCAN_PATH" -y --model "$CM_MODEL" 2>&1 | tee "$RUNNER_TEMP/cm-find.cm.log"
+          cm find "$SCAN_PATH" -y --unrestricted --model "$CM_MODEL" 2>&1 | tee "$RUNNER_TEMP/cm-find.cm.log"
 
       # Re-emit the findings as JSON for the triage script. This is a separate
       # step guarded by always() so that a scan which finds problems still
@@ -203,7 +204,7 @@ jobs:
             # Omit --bypass-warning and verification dies on its first step
             # with "warning not acknowledged", the finding stays OPEN, and the
             # run quietly degrades to fixing without ever having verified.
-            cm verify "$FID" -y --bypass-warning --model "$CM_MODEL" \
+            cm verify "$FID" -y --bypass-warning --unrestricted --model "$CM_MODEL" \
               2>&1 | tee "$RUNNER_TEMP/verify-$FID.cm.log" || true
 
             # cm verify exits 0 whatever the verdict, so the answer has to be
@@ -225,7 +226,7 @@ jobs:
             #                      from -y and it fires whenever stdin is not a
             #                      terminal, which in CI is always.
             #   --model            pin the model for predictable results
-            cm fix "$FID" -y --bypass-warning --model "$CM_MODEL" 2>&1 | tee "$RUNNER_TEMP/fix-$FID.cm.log" || true
+            cm fix "$FID" -y --bypass-warning --unrestricted --model "$CM_MODEL" 2>&1 | tee "$RUNNER_TEMP/fix-$FID.cm.log" || true
 
             # Safety net: if cm did not edit the files directly, recover the
             # patch from the log and apply it by hand.
